@@ -2,11 +2,11 @@ import React from 'react';
 import { Alert, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Screen, Button, Chip, ScreenHeader } from '../components/ui';
-import { CompareSlider } from '../components/result/CompareSlider';
 import { useTheme } from '../theme';
 import { useImageStore, useStudioStore } from '../store';
 import { getStyle } from '../features/ml/styles';
 import { mockTint, mockTintOpacity } from '../features/ml/runPipeline';
+import CompareSlider from '../components/result/CompareSlider';
 
 export default function ResultScreen() {
   const { colors, type, radius } = useTheme();

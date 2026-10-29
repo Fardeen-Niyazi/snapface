@@ -1,9 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Screen, Button, Chip, ScreenHeader } from '../../components/ui';
-import { PhotoPreview } from '../../components/studio/PhotoPreview';
-import { ProcessingOverlay } from '../../components/studio/ProcessingOverlay';
+import { Screen, Button, Chip, ScreenHeader } from '../ui';
+import { PhotoPreview } from '../studio/PhotoPreview';
+import { ProcessingOverlay } from '../studio/ProcessingOverlay';
 import { useTheme } from '../../theme';
 import { useImageStore } from '../../store';
 import { getStyle } from '../../features/ml/styles';
@@ -12,8 +12,8 @@ import {
   mockTint,
   mockTintOpacity,
 } from '../../features/ml/runPipeline';
-import { StyleCarousel } from './StyleCarousal';
-import { StrengthSlider } from './StrengthSlider';
+import { StyleCarousel } from '../studio/StyleCarousal';
+import { StrengthSlider } from '../studio/StrengthSlider';
 import { useStudioStore } from '../../store';
 
 export default function StudioScreen() {

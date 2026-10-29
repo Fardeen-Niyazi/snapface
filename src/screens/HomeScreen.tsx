@@ -4,11 +4,11 @@ import { useNavigation } from '@react-navigation/native';
 import { Screen, Button, ScreenHeader, Icon } from '../components/ui';
 import { useTheme } from '../theme';
 import { useSettingsStore, ThemeMode } from '../store';
-
+import { pickFromGallery, takePhoto } from '../services/ImagePicker';
+import { useImageStore } from '../store';
 const NEXT: Record<ThemeMode, ThemeMode> = {
-  system: 'light',
   light: 'dark',
-  dark: 'system',
+  dark: 'light',
 };
 
 export default function HomeScreen() {
@@ -17,8 +17,15 @@ export default function HomeScreen() {
   const themeMode = useSettingsStore(s => s.themeMode);
   const setThemeMode = useSettingsStore(s => s.setThemeMode);
 
-  const goStudio = () => navigation.navigate('Tabs', { screen: 'Studio' }); // step 7 opens the picker here
+  const setImage = useImageStore(s => s.setImage);
 
+  const choose = async (source: 'gallery' | 'camera') => {
+    const img =
+      source === 'gallery' ? await pickFromGallery() : await takePhoto();
+    if (!img) return; // cancelled or error (the service already showed the alert)
+    setImage(img); // also clears any previous result
+    navigation.navigate('Tabs', { screen: 'Studio' });
+  };
   return (
     <Screen>
       <ScreenHeader
@@ -76,8 +83,13 @@ export default function HomeScreen() {
           Best with one face, looking at the camera
         </Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-          <Button flex title="Gallery" onPress={goStudio} />
-          <Button flex variant="secondary" title="Camera" onPress={goStudio} />
+          <Button flex title="Gallery" onPress={() => choose('gallery')} />
+          <Button
+            flex
+            variant="secondary"
+            title="Camera"
+            onPress={() => choose('camera')}
+          />
         </View>
       </View>
 

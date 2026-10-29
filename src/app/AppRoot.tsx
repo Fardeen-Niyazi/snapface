@@ -31,7 +31,7 @@ export default function AppRoot() {
       <SafeAreaProvider>
         <StatusBar
           barStyle={isDark ? 'light-content' : 'dark-content'}
-          backgroundColor={colors.bg}
+          // backgroundColor={colors.bg}
         />
         <NavigationContainer theme={navTheme}>
           <RootNavigator />
