@@ -4,8 +4,13 @@ import { useTheme } from '../../theme';
 import { IconButton } from './IconButton';
 import { IconName } from './Icon';
 
-type Action = { icon: IconName; label: string; onPress?: () => void };
-
+type Action = {
+  icon: IconName;
+  label: string;
+  onPress?: () => void;
+  onPressIn?: () => void;
+  onPressOut?: () => void;
+};
 type Props = {
   title: string;
   left?: Action;

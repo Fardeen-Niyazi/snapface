@@ -1,87 +1,113 @@
-import React from 'react';
-import { Text, Pressable, View } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import { Screen } from '../components/ui/Screen';
+import { Screen, Button, Chip, ScreenHeader } from '../components/ui';
+import { PhotoPreview } from '../components/studio/PhotoPreview';
+import { StrengthSlider } from '../components/studio/StrengthSlider';
+import { ProcessingOverlay } from '../components/studio/ProcessingOverlay';
 import { useTheme } from '../theme';
-import { useStudioStore } from '../store';
-import { STYLES, getStyle } from '../features/ml/styles';
+import { useImageStore, useStudioStore } from '../store';
+import { getStyle } from '../features/ml/styles';
+import {
+  runPipeline,
+  mockTint,
+  mockTintOpacity,
+} from '../features/ml/runPipeline';
+import { StyleCarousel } from '../components/studio/StyleCarousal';
 
 export default function StudioScreen() {
-  const { colors, type, radius, sizes } = useTheme();
+  const { radius } = useTheme();
   const navigation = useNavigation();
+  const [showOriginal, setShowOriginal] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const image = useImageStore(s => s.image);
+  const setResult = useImageStore(s => s.setResult);
+
   const styleId = useStudioStore(s => s.styleId);
-  const setStyle = useStudioStore(s => s.setStyle);
   const strength = useStudioStore(s => s.strength);
+  const status = useStudioStore(s => s.status);
+  const setStyle = useStudioStore(s => s.setStyle);
   const setStrength = useStudioStore(s => s.setStrength);
+  const start = useStudioStore(s => s.start);
+  const setProgress = useStudioStore(s => s.setProgress);
+  const finish = useStudioStore(s => s.finish);
+  const fail = useStudioStore(s => s.fail);
+  const cancel = useStudioStore(s => s.cancel);
+
   const current = getStyle(styleId);
 
+  const onCreate = async () => {
+    const ac = new AbortController();
+    abortRef.current = ac;
+    start();
+    try {
+      const out = await runPipeline({
+        image,
+        style: current,
+        strength,
+        onProgress: setProgress,
+        signal: ac.signal,
+      });
+      setResult(out);
+      finish();
+      navigation.navigate('Result');
+    } catch (e) {
+      if (!ac.signal.aborted) fail(String(e));
+    }
+  };
+
+  const onCancel = () => {
+    abortRef.current?.abort();
+    cancel();
+  };
+
   return (
-    <Screen>
-      <Text style={[type.title, { color: colors.text }]}>{current.name}</Text>
-      <Text style={[type.caption, { color: colors.textMuted, marginTop: 4 }]}>
-        {current.engine} · {current.sizeMb} MB · ~{current.approxMs} ms
-      </Text>
+    <View style={{ flex: 1 }}>
+      <Screen>
+        <ScreenHeader
+          title={current.name}
+          left={{
+            icon: 'back',
+            label: 'Back',
+            onPress: () => navigation.navigate('Tabs', { screen: 'Home' }),
+          }}
+          right={[{ icon: 'eye', label: 'Hold to see the original' }]}
+        />
 
-      <View
-        style={{
-          flexDirection: 'row',
-          flexWrap: 'wrap',
-          gap: 8,
-          marginTop: 16,
-        }}
-      >
-        {STYLES.map(s => (
-          <Pressable
-            key={s.id}
-            onPress={() => setStyle(s.id)}
-            style={{
-              paddingHorizontal: 14,
-              paddingVertical: 8,
-              borderRadius: radius.pill,
-              borderWidth: 1,
-              borderColor: s.id === styleId ? colors.accent : colors.line,
-              backgroundColor: colors.surface,
-            }}
-          >
-            <Text style={[type.caption, { color: colors.text }]}>{s.name}</Text>
-          </Pressable>
-        ))}
-      </View>
+        <View style={{ flex: 1, borderRadius: radius.xl, overflow: 'hidden' }}>
+          <PhotoPreview
+            uri={image?.uri}
+            tint={showOriginal ? undefined : mockTint(styleId)}
+            tintOpacity={mockTintOpacity(strength)}
+            style={{ flex: 1 }}
+          />
+          <View style={{ position: 'absolute', top: 12, left: 12 }}>
+            <Chip
+              dot
+              label={`${current.modelFile ?? 'GPU shader'} · ${
+                current.sizeMb
+              } MB`}
+            />
+          </View>
+          <View style={{ position: 'absolute', top: 12, right: 12 }}>
+            <Chip label={`~${current.approxMs} ms`} />
+          </View>
+        </View>
 
-      <View
-        style={{
-          flexDirection: 'row',
-          alignItems: 'center',
-          gap: 12,
-          marginTop: 20,
-        }}
-      >
-        <Pressable onPress={() => setStrength(Math.max(0, strength - 10))}>
-          <Text style={[type.title, { color: colors.accent }]}>−</Text>
-        </Pressable>
-        <Text style={[type.body, { color: colors.text }]}>
-          Strength {strength}%
-        </Text>
-        <Pressable onPress={() => setStrength(Math.min(100, strength + 10))}>
-          <Text style={[type.title, { color: colors.accent }]}>+</Text>
-        </Pressable>
-      </View>
-
-      <Pressable
-        onPress={() => navigation.navigate('Result')}
-        style={{
-          marginTop: 24,
-          height: sizes.button,
-          borderRadius: radius.md,
-          backgroundColor: colors.accent,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text style={[type.button, { color: colors.onAccent }]}>
-          Create portrait
-        </Text>
-      </Pressable>
-    </Screen>
+        <View style={{ gap: 14, marginTop: 14 }}>
+          <StyleCarousel
+            selected={styleId}
+            uri={image?.uri}
+            onSelect={setStyle}
+          />
+          <StrengthSlider value={strength} onChange={setStrength} />
+          <Button title="Create portrait" onPress={onCreate} />
+        </View>
+      </Screen>
+      {status === 'processing' ? (
+        <ProcessingOverlay onCancel={onCancel} />
+      ) : null}
+    </View>
   );
 }
