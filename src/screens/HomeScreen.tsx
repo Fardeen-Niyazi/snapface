@@ -6,26 +6,29 @@ import { useTheme } from '../theme';
 import { useSettingsStore, ThemeMode } from '../store';
 import { pickFromGallery, takePhoto } from '../services/ImagePicker';
 import { useImageStore } from '../store';
+import { TabNav } from '../navigation/types';
+
 const NEXT: Record<ThemeMode, ThemeMode> = {
+  system: 'light',
   light: 'dark',
-  dark: 'light',
+  dark: 'system',
 };
 
 export default function HomeScreen() {
   const { colors, type, radius, isDark } = useTheme();
-  const navigation = useNavigation();
-  const themeMode = useSettingsStore(s => s.themeMode);
-  const setThemeMode = useSettingsStore(s => s.setThemeMode);
-
-  const setImage = useImageStore(s => s.setImage);
+  const navigation = useNavigation<TabNav>();
+  const themeMode = useSettingsStore(state => state.themeMode);
+  const setThemeMode = useSettingsStore(state => state.setThemeMode);
+  const setImage = useImageStore(state => state.setImage);
 
   const choose = async (source: 'gallery' | 'camera') => {
-    const img =
+    const image =
       source === 'gallery' ? await pickFromGallery() : await takePhoto();
-    if (!img) return; // cancelled or error (the service already showed the alert)
-    setImage(img); // also clears any previous result
-    navigation.navigate('Tabs', { screen: 'Studio' });
+    if (!image) return; // cancelled or an alert was already shown
+    setImage(image); // also clears the previous result
+    navigation.navigate('Studio');
   };
+
   return (
     <Screen>
       <ScreenHeader
@@ -39,7 +42,7 @@ export default function HomeScreen() {
           {
             icon: 'history',
             label: 'Saved renders',
-            onPress: () => navigation.navigate('Tabs', { screen: 'Saved' }),
+            onPress: () => navigation.navigate('Saved'),
           },
         ]}
       />
@@ -83,12 +86,12 @@ export default function HomeScreen() {
           Best with one face, looking at the camera
         </Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-          <Button flex title="Gallery" onPress={() => choose('gallery')} />
+          <Button flex title="Gallery" onPress={() => void choose('gallery')} />
           <Button
             flex
             variant="secondary"
             title="Camera"
-            onPress={() => choose('camera')}
+            onPress={() => void choose('camera')}
           />
         </View>
       </View>
@@ -104,7 +107,7 @@ export default function HomeScreen() {
         }}
       >
         <Text style={[type.caption, { color: colors.text }]}>
-          On-device models
+          Three styles, all on device
         </Text>
         <Text
           style={[
@@ -112,8 +115,9 @@ export default function HomeScreen() {
             { color: colors.textMuted, marginTop: 4, lineHeight: 18 },
           ]}
         >
-          Quick styles use shaders (0 MB). Anime and Storybook use small TFLite
-          models, under 10 MB in total.
+          Toon is a live shader. Cartoon and Anime run small TFLite models only
+          when you tap Create, so your battery stays cool while you pick a
+          look.
         </Text>
       </View>
     </Screen>

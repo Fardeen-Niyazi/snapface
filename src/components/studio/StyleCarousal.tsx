@@ -1,35 +1,44 @@
 import React from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
-import { STYLES, StyleId } from '../../features/ml/styles';
-import { mockTint } from '../../features/ml/runPipeline';
+import { STYLES, StyleId, isModelStyle } from '../../features/ml/styles';
 import { PhotoPreview } from './PhotoPreview';
 
 type Props = {
   selected: StyleId;
-  uri?: string | null;
+  imageUri?: string | null;
+  toonThumbUri?: string | null;
   onSelect: (id: StyleId) => void;
 };
 
-const TAG = { shader: 'FAST', tflite: 'AI', hybrid: '3D' } as const;
-
-export function StyleCarousel({ selected, uri, onSelect }: Props) {
+export function StyleCarousel({
+  selected,
+  imageUri,
+  toonThumbUri,
+  onSelect,
+}: Props) {
   const { colors, type, radius } = useTheme();
+
   return (
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={{ gap: 8 }}
     >
-      {STYLES.map(s => {
-        const on = s.id === selected;
+      {STYLES.map(style => {
+        const active = style.id === selected;
+        // Toon gets a real rendered thumbnail. Model styles deliberately show
+        // the original photo, because models only run when Create is pressed.
+        const thumb =
+          style.id === 'toon' ? toonThumbUri ?? imageUri : imageUri;
+
         return (
           <Pressable
-            key={s.id}
+            key={style.id}
             accessibilityRole="button"
-            accessibilityLabel={`${s.name} style`}
-            accessibilityState={{ selected: on }}
-            onPress={() => onSelect(s.id)}
+            accessibilityLabel={`${style.name} style`}
+            accessibilityState={{ selected: active }}
+            onPress={() => onSelect(style.id)}
             style={{ width: 78 }}
           >
             <View
@@ -39,48 +48,44 @@ export function StyleCarousel({ selected, uri, onSelect }: Props) {
                 borderRadius: radius.md + 2,
                 overflow: 'hidden',
                 borderWidth: 2,
-                borderColor: on ? colors.accent : 'transparent',
+                borderColor: active ? colors.accent : 'transparent',
               }}
             >
-              <PhotoPreview
-                uri={uri}
-                tint={mockTint(s.id)}
-                tintOpacity={0.3}
-                style={{ flex: 1 }}
-              />
-              <View
-                style={{
-                  position: 'absolute',
-                  right: 5,
-                  bottom: 5,
-                  paddingHorizontal: 5,
-                  paddingVertical: 2,
-                  borderRadius: 5,
-                  backgroundColor: colors.accent,
-                }}
-              >
-                <Text
+              <PhotoPreview uri={thumb} style={{ flex: 1 }} />
+              {isModelStyle(style) ? (
+                <View
                   style={{
-                    fontFamily: 'Inter-Bold',
-                    fontSize: 8,
-                    color: colors.onAccent,
+                    position: 'absolute',
+                    right: 5,
+                    bottom: 5,
+                    paddingHorizontal: 5,
+                    paddingVertical: 2,
+                    borderRadius: 5,
+                    backgroundColor: colors.accent,
                   }}
                 >
-                  {TAG[s.engine]}
-                </Text>
-              </View>
+                  <Text
+                    style={[
+                      type.caption,
+                      { fontSize: 9, lineHeight: 11, color: colors.onAccent },
+                    ]}
+                  >
+                    AI
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <Text
               style={[
                 type.caption,
                 {
-                  color: on ? colors.text : colors.textMuted,
+                  color: active ? colors.text : colors.textMuted,
                   textAlign: 'center',
                   marginTop: 5,
                 },
               ]}
             >
-              {s.name}
+              {style.name}
             </Text>
           </Pressable>
         );

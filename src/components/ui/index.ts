@@ -4,3 +4,4 @@ export * from './IconButton';
 export * from './Chip';
 export * from './ScreenHeader';
 export * from './Screen';
+export * from './ActionSheet';

@@ -1,114 +1,176 @@
 import React, { useRef, useState } from 'react';
-import { View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { Screen, Button, Chip, ScreenHeader } from '../ui';
-import { PhotoPreview } from '../studio/PhotoPreview';
-import { ProcessingOverlay } from '../studio/ProcessingOverlay';
-import { useTheme } from '../../theme';
-import { useImageStore } from '../../store';
-import { getStyle } from '../../features/ml/styles';
 import {
-  runPipeline,
-  mockTint,
-  mockTintOpacity,
-} from '../../features/ml/runPipeline';
-import { StyleCarousel } from '../studio/StyleCarousal';
-import { StrengthSlider } from '../studio/StrengthSlider';
-import { useStudioStore } from '../../store';
+  Image,
+  PanResponder,
+  StyleProp,
+  StyleSheet,
+  View,
+  ViewStyle,
+} from 'react-native';
+import { useTheme } from '../../theme';
 
-export default function StudioScreen() {
-  const { radius } = useTheme();
-  const navigation = useNavigation();
-  const [showOriginal, setShowOriginal] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
+const SAMPLE = require('../../assets/images/sample.jpg');
 
-  const image = useImageStore(s => s.image);
-  const setResult = useImageStore(s => s.setResult);
+type Props = {
+  beforeUri?: string | null;
+  afterUri?: string | null;
+  style?: StyleProp<ViewStyle>;
+};
 
-  const styleId = useStudioStore(s => s.styleId);
-  const strength = useStudioStore(s => s.strength);
-  const status = useStudioStore(s => s.status);
-  const setStyle = useStudioStore(s => s.setStyle);
-  const setStrength = useStudioStore(s => s.setStrength);
-  const start = useStudioStore(s => s.start);
-  const setProgress = useStudioStore(s => s.setProgress);
-  const finish = useStudioStore(s => s.finish);
-  const fail = useStudioStore(s => s.fail);
-  const cancel = useStudioStore(s => s.cancel);
+const clamp01 = (value: number) => Math.max(0, Math.min(1, value));
 
-  const current = getStyle(styleId);
+/**
+ * Original photo on the left, styled result on the right.
+ * The left copy is clipped by a resizable overlay; its image keeps the full
+ * container size so it never squashes while the slider moves.
+ */
+export default function CompareSlider({ beforeUri, afterUri, style }: Props) {
+  const { colors, radius } = useTheme();
+  const [position, setPosition] = useState(0.5);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const widthRef = useRef(1);
+  const dragStart = useRef(0.5);
 
-  const onCreate = async () => {
-    const ac = new AbortController();
-    abortRef.current = ac;
-    start();
-    try {
-      const out = await runPipeline({
-        image,
-        style: current,
-        strength,
-        onProgress: setProgress,
-        signal: ac.signal,
-      });
-      setResult(out);
-      finish();
-      navigation.navigate('Result');
-    } catch (e) {
-      if (!ac.signal.aborted) fail(String(e));
-    }
+  const setFromX = (x: number) => {
+    const next = clamp01(x / Math.max(1, widthRef.current));
+    dragStart.current = next;
+    setPosition(next);
   };
 
-  const onCancel = () => {
-    abortRef.current?.abort();
-    cancel();
-  };
+  const pan = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderGrant: event => setFromX(event.nativeEvent.locationX),
+      onPanResponderMove: (_event, gesture) =>
+        setPosition(
+          clamp01(dragStart.current + gesture.dx / widthRef.current),
+        ),
+    }),
+  ).current;
+
+  const before = beforeUri ? { uri: beforeUri } : SAMPLE;
+  const after = afterUri ? { uri: afterUri } : before;
+  const pct = `${Math.round(position * 100)}%` as `${number}%`;
+  const percent = Math.round(position * 100);
 
   return (
-    <View style={{ flex: 1 }}>
-      <Screen>
-        <ScreenHeader
-          title={current.name}
-          left={{
-            icon: 'back',
-            label: 'Back',
-            onPress: () => navigation.navigate('Tabs', { screen: 'Home' }),
-          }}
-          right={[{ icon: 'eye', label: 'Hold to see the original' }]}
+    <View
+      {...pan.panHandlers}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel="Before and after comparison"
+      accessibilityValue={{ min: 0, max: 100, now: percent }}
+      accessibilityActions={[
+        { name: 'increment', label: 'Show more of the styled image' },
+        { name: 'decrement', label: 'Show more of the original' },
+      ]}
+      onAccessibilityAction={event => {
+        const step = 0.1;
+        setPosition(current =>
+          clamp01(
+            event.nativeEvent.actionName === 'increment'
+              ? current + step
+              : current - step,
+          ),
+        );
+      }}
+      onLayout={event => {
+        widthRef.current = event.nativeEvent.layout.width;
+        setSize(event.nativeEvent.layout);
+      }}
+      style={[{ overflow: 'hidden', backgroundColor: colors.surfaceAlt }, style]}
+    >
+      <Image source={after} resizeMode="cover" style={StyleSheet.absoluteFill} />
+
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: 0,
+          top: 0,
+          bottom: 0,
+          width: pct,
+          overflow: 'hidden',
+        }}
+      >
+        <Image
+          source={before}
+          resizeMode="cover"
+          style={{ width: size.width, height: size.height }}
         />
+      </View>
 
-        <View style={{ flex: 1, borderRadius: radius.xl, overflow: 'hidden' }}>
-          <PhotoPreview
-            uri={image?.uri}
-            tint={showOriginal ? undefined : mockTint(styleId)}
-            tintOpacity={mockTintOpacity(strength)}
-            style={{ flex: 1 }}
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: pct,
+          top: 0,
+          bottom: 0,
+          width: 2,
+          marginLeft: -1,
+          backgroundColor: '#FFFFFF',
+        }}
+      />
+      <View
+        pointerEvents="none"
+        style={{
+          position: 'absolute',
+          left: pct,
+          top: '50%',
+          marginLeft: -18,
+          marginTop: -18,
+          width: 36,
+          height: 36,
+          borderRadius: 18,
+          backgroundColor: colors.surface,
+          borderWidth: 2,
+          borderColor: '#FFFFFF',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
+        <View style={{ flexDirection: 'row', gap: 3 }}>
+          <View
+            style={{
+              width: 0,
+              height: 0,
+              borderTopWidth: 5,
+              borderBottomWidth: 5,
+              borderRightWidth: 6,
+              borderTopColor: 'transparent',
+              borderBottomColor: 'transparent',
+              borderRightColor: colors.text,
+            }}
           />
-          <View style={{ position: 'absolute', top: 12, left: 12 }}>
-            <Chip
-              dot
-              label={`${current.modelFile ?? 'GPU shader'} · ${
-                current.sizeMb
-              } MB`}
-            />
-          </View>
-          <View style={{ position: 'absolute', top: 12, right: 12 }}>
-            <Chip label={`~${current.approxMs} ms`} />
-          </View>
+          <View
+            style={{
+              width: 0,
+              height: 0,
+              borderTopWidth: 5,
+              borderBottomWidth: 5,
+              borderLeftWidth: 6,
+              borderTopColor: 'transparent',
+              borderBottomColor: 'transparent',
+              borderLeftColor: colors.text,
+            }}
+          />
         </View>
+      </View>
 
-        <View style={{ gap: 14, marginTop: 14 }}>
-          <StyleCarousel
-            selected={styleId}
-            uri={image?.uri}
-            onSelect={setStyle}
-          />
-          <StrengthSlider value={strength} onChange={setStrength} />
-          <Button title="Create portrait" onPress={onCreate} />
-        </View>
-      </Screen>
-      {status === 'processing' ? (
-        <ProcessingOverlay onCancel={onCancel} />
-      ) : null}
+      {size.width === 0 ? (
+        <View style={StyleSheet.absoluteFill} />
+      ) : (
+        <View
+          pointerEvents="none"
+          style={[
+            StyleSheet.absoluteFill,
+            { borderRadius: radius.xl, borderWidth: 1, borderColor: colors.line },
+          ]}
+        />
+      )}
     </View>
   );
 }

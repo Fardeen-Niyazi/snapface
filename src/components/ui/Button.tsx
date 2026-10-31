@@ -1,29 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { useTheme } from '../../theme';
 import { Icon, IconName } from './Icon';
-
-const useButtonStyles = () => {
-  const { colors, type, radius, sizes } = useTheme();
-  return StyleSheet.create({
-    buttonContainer: {
-      height: sizes.button,
-      borderRadius: radius.md,
-      paddingHorizontal: 18,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 8,
-      flex: 1,
-      backgroundColor: colors.accent,
-      borderWidth: 1,
-      borderColor: colors.line,
-    },
-    buttonText: {
-      color: colors.onAccent,
-    },
-  });
-};
 
 type Props = {
   title: string;

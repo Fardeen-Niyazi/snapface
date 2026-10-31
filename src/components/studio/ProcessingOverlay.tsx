@@ -6,8 +6,9 @@ import { Button } from '../ui';
 
 export function ProcessingOverlay({ onCancel }: { onCancel: () => void }) {
   const { colors, type } = useTheme();
-  const progress = useStudioStore(s => s.progress);
-  const stepLabel = useStudioStore(s => s.stepLabel);
+  const progress = useStudioStore(state => state.progress);
+  const stepLabel = useStudioStore(state => state.stepLabel);
+  const percent = Math.round(progress * 100);
 
   return (
     <View
@@ -25,6 +26,10 @@ export function ProcessingOverlay({ onCancel }: { onCancel: () => void }) {
         Creating your portrait
       </Text>
       <View
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Portrait progress"
+        accessibilityValue={{ min: 0, max: 100, now: percent }}
         style={{
           height: 8,
           borderRadius: 4,
@@ -37,11 +42,26 @@ export function ProcessingOverlay({ onCancel }: { onCancel: () => void }) {
             height: 8,
             borderRadius: 4,
             backgroundColor: colors.accent,
-            width: `${Math.round(progress * 100)}%` as `${number}%`,
+            width: `${percent}%` as `${number}%`,
           }}
         />
       </View>
-      <Text style={[type.body, { color: colors.textMuted }]}>{stepLabel}</Text>
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: 12,
+        }}
+      >
+        <Text
+          accessibilityLiveRegion="polite"
+          style={[type.body, { color: colors.textMuted, flex: 1 }]}
+        >
+          {stepLabel}
+        </Text>
+        <Text style={[type.caption, { color: colors.text }]}>{percent}%</Text>
+      </View>
       <Button variant="secondary" title="Cancel" onPress={onCancel} />
     </View>
   );

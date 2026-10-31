@@ -16,6 +16,7 @@ export default function TabNavigator() {
 
   return (
     <Tab.Navigator
+      initialRouteName="Studio"
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarActiveTintColor: colors.accent,
